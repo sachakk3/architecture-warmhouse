@@ -1,0 +1,19 @@
+@startuml C4_Context_SmartHome
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title C4 Context Diagram - Warmhouse Monolith
+
+Person(user, "Homeowner", "Controls home heating and monitors temperature")
+Person(installer, "Heating Installation Specialist", "Connects a house heating system to the current platform during installation")
+System(system, "Warmhouse Monolith", "Go + Gin. REST API for sensor management and temperature monitoring")
+
+System_Ext(tempApi, "Temperature API", "External service. Returns current temperature by location or sensor id")
+SystemDb_Ext(pg, "PostgreSQL", "Primary database. Stores sensor data in the sensors table")
+
+Rel(user, system, "Uses", "HTTPS/JSON")
+Rel(installer, system, "Performs setup and commissioning for new home installations", "HTTPS/JSON")
+Rel(system, tempApi, "Requests temperature telemetry", "HTTP/JSON")
+Rel(system, pg, "Reads and updates sensor data", "SQL")
+
+SHOW_LEGEND()
+@enduml
