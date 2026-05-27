@@ -1,0 +1,81 @@
+@startuml C4_Container_Warmhouse
+!include ../_c4/C4_Container.puml
+
+LAYOUT_LEFT_RIGHT()
+
+title C4 Container Diagram - Warmhouse SaaS Platform
+
+Person(homeowner, "Homeowner", "Self-service user: configures modules, connects devices, controls devices, views telemetry and camera feeds")
+Person(admin, "Platform Operator", "Manages partner integrations and platform operations")
+
+System_Ext(partnerDevices, "Partner Devices", "Smart thermostats, lights, locks, gates, cameras")
+System_Ext(identityProvider, "Identity Provider", "OIDC/OAuth2 provider")
+System_Ext(paymentProvider, "Payment Provider", "External payment processing")
+
+System_Boundary(warmhouse, "Warmhouse SaaS") {
+  Container(webApp, "Web App", "React/Angular/Vue", "Self-service UI for homeowners and platform operators")
+  Container(mobileApp, "Mobile App", "iOS/Android", "Remote control, telemetry, alerts")
+
+  Container(apiGateway, "API Gateway", "Kong/Envoy + BFF", "Single entry point, authZ, rate limiting, tenant routing")
+
+  Container(iamService, "IAM Service", ".NET", "Users, roles, tenants, memberships")
+  Container(moduleCatalogService, "Module Catalog Service", ".NET", "Catalog of smart home kits and module activation")
+  Container(deviceService, "Device Registry & Provisioning Service", ".NET", "Device onboarding, digital twins, binding to home/room")
+  Container(controlService, "Command & Control Service", ".NET", "Device command orchestration and command status")
+  Container(telemetryService, "Telemetry Service", ".NET", "Telemetry ingestion, query API, aggregations")
+  Container(scenarioService, "Scenario Service", ".NET", "Automation rules, schedules, trigger processing")
+  Container(integrationHub, "Partner Integration Hub", ".NET", "Protocol adapters: MQTT, HTTP, Zigbee/Z-Wave via bridges")
+  Container(videoService, "Video Service", ".NET", "Camera stream metadata and secure access links")
+  Container(notificationService, "Notification Service", ".NET", "Push/SMS/email notifications")
+  Container(billingService, "Billing & Subscription Service", ".NET", "Plans, subscriptions, quotas, invoicing")
+
+  Container(messageBus, "Event Bus", "Kafka/NATS/RabbitMQ", "Asynchronous platform events")
+
+  ContainerDb(iamDb, "IAM DB", "PostgreSQL", "Users, roles, tenant memberships")
+  ContainerDb(catalogDb, "Catalog DB", "PostgreSQL", "Module catalog, compatibility rules")
+  ContainerDb(deviceDb, "Device DB", "PostgreSQL", "Devices, homes, rooms, desired/reported state")
+  ContainerDb(telemetryDb, "Telemetry Store", "TimescaleDB/ClickHouse", "High-volume telemetry time series")
+  ContainerDb(scenarioDb, "Scenario DB", "PostgreSQL", "Rules, schedules, execution metadata")
+  ContainerDb(billingDb, "Billing DB", "PostgreSQL", "Subscriptions, plans, payment state")
+  ContainerDb(videoMetaDb, "Video Metadata DB", "PostgreSQL", "Cameras, stream metadata, retention policies")
+}
+
+Rel(homeowner, webApp, "Uses", "HTTPS")
+Rel(homeowner, mobileApp, "Uses", "HTTPS")
+Rel(homeowner, mobileApp, "Performs device onboarding and setup", "HTTPS")
+Rel(admin, webApp, "Uses for operations", "HTTPS")
+
+Rel(webApp, apiGateway, "Calls APIs", "HTTPS/JSON")
+Rel(mobileApp, apiGateway, "Calls APIs", "HTTPS/JSON")
+
+Rel(apiGateway, iamService, "AuthN/AuthZ and tenant context", "gRPC/HTTP")
+Rel(apiGateway, moduleCatalogService, "Catalog and module activation", "HTTP")
+Rel(apiGateway, deviceService, "Device lifecycle", "HTTP")
+Rel(apiGateway, controlService, "Device commands", "HTTP")
+Rel(apiGateway, telemetryService, "Telemetry queries", "HTTP")
+Rel(apiGateway, scenarioService, "Scenario management", "HTTP")
+Rel(apiGateway, videoService, "Camera access metadata", "HTTP")
+Rel(apiGateway, billingService, "Subscription and quota checks", "HTTP")
+
+Rel(iamService, identityProvider, "Federated login", "OIDC/OAuth2")
+Rel(iamService, iamDb, "R/W")
+Rel(moduleCatalogService, catalogDb, "R/W")
+Rel(deviceService, deviceDb, "R/W")
+Rel(telemetryService, telemetryDb, "R/W")
+Rel(scenarioService, scenarioDb, "R/W")
+Rel(billingService, billingDb, "R/W")
+Rel(videoService, videoMetaDb, "R/W")
+
+Rel(deviceService, integrationHub, "Provisioning and device credentials", "Async events")
+Rel(controlService, integrationHub, "Send commands to devices", "Async events")
+Rel(integrationHub, partnerDevices, "Bi-directional control and telemetry", "MQTT/HTTP/Protocol bridges")
+Rel(integrationHub, messageBus, "Publishes normalized telemetry/events")
+Rel(telemetryService, messageBus, "Consumes telemetry events")
+Rel(scenarioService, messageBus, "Consumes triggers and publishes actions")
+Rel(controlService, messageBus, "Consumes scenario actions and publishes command status")
+Rel(notificationService, messageBus, "Consumes alerts and command outcomes")
+Rel(notificationService, apiGateway, "Notification preferences API", "HTTP")
+Rel(billingService, paymentProvider, "Charge/renew subscription", "HTTPS")
+
+SHOW_LEGEND()
+@enduml

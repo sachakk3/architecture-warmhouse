@@ -1,0 +1,33 @@
+@startuml C4_Component_Billing_Service
+!include ../_c4/C4_Component.puml
+
+title C4 Component Diagram - Billing & Subscription Service
+
+Container_Ext(apiGateway, "API Gateway", "Subscription and quota requests")
+System_Ext(paymentProvider, "Payment Provider", "Charges, renewals, payment status")
+ContainerDb(billingDb, "Billing DB", "PostgreSQL", "Plans, subscriptions, invoices, quotas")
+
+Container_Boundary(billingService, "Billing & Subscription Service") {
+  Component(subscriptionController, "Subscription API Controller", ".NET Web API", "Manage plans and subscriptions")
+  Component(quotaController, "Quota API Controller", ".NET Web API", "Checks limits for modules/devices")
+  Component(subscriptionService, "Subscription Service", ".NET", "Plan lifecycle and renewals")
+  Component(quotaService, "Quota Service", ".NET", "Tenant quota evaluation and enforcement")
+  Component(paymentAdapter, "Payment Adapter", ".NET", "Payment provider integration")
+  Component(invoiceService, "Invoice Service", ".NET", "Invoice generation and payment state transitions")
+  Component(billingRepository, "Billing Repository", "EF Core / Dapper", "Persistence layer")
+}
+
+Rel(apiGateway, subscriptionController, "Calls", "HTTPS/JSON")
+Rel(apiGateway, quotaController, "Calls", "HTTPS/JSON")
+Rel(subscriptionController, subscriptionService, "Uses")
+Rel(quotaController, quotaService, "Uses")
+Rel(subscriptionService, paymentAdapter, "Charges/renews")
+Rel(paymentAdapter, paymentProvider, "Creates payment intents and captures", "HTTPS")
+Rel(subscriptionService, invoiceService, "Produces billing documents")
+Rel(subscriptionService, billingRepository, "R/W")
+Rel(quotaService, billingRepository, "Reads plans/limits")
+Rel(invoiceService, billingRepository, "R/W")
+Rel(billingRepository, billingDb, "R/W", "SQL")
+
+SHOW_LEGEND()
+@enduml

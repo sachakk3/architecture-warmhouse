@@ -1,0 +1,34 @@
+@startuml C4_Component_Scenario_Service
+!include ../_c4/C4_Component.puml
+
+title C4 Component Diagram - Scenario Service
+
+Container_Ext(apiGateway, "API Gateway", "Scenario CRUD requests")
+Container_Ext(messageBus, "Event Bus", "Triggers and actions")
+ContainerDb(scenarioDb, "Scenario DB", "PostgreSQL", "Rules, schedules, execution metadata")
+
+Container_Boundary(scenarioService, "Scenario Service") {
+  Component(scenarioController, "Scenario API Controller", ".NET Web API", "Create/update/delete automation rules")
+  Component(ruleCompiler, "Rule Compiler", ".NET", "Compiles rules into executable plans")
+  Component(triggerConsumer, "Trigger Consumer", ".NET", "Consumes telemetry/device events")
+  Component(scheduleEngine, "Schedule Engine", ".NET", "Cron/time-based trigger execution")
+  Component(actionPublisher, "Action Publisher", ".NET", "Publishes command actions")
+  Component(executionTracker, "Execution Tracker", ".NET", "Stores execution history and outcomes")
+  Component(scenarioRepository, "Scenario Repository", "EF Core / Dapper", "Persistence layer")
+}
+
+Rel(apiGateway, scenarioController, "Calls", "HTTPS/JSON")
+Rel(scenarioController, ruleCompiler, "Uses")
+Rel(ruleCompiler, scenarioRepository, "R/W")
+Rel(triggerConsumer, messageBus, "Consumes triggers", "Async events")
+Rel(scheduleEngine, scenarioRepository, "Reads schedules")
+Rel(triggerConsumer, actionPublisher, "Invokes")
+Rel(scheduleEngine, actionPublisher, "Invokes")
+Rel(actionPublisher, messageBus, "Publishes actions", "Async events")
+Rel(triggerConsumer, executionTracker, "Tracks execution")
+Rel(scheduleEngine, executionTracker, "Tracks execution")
+Rel(executionTracker, scenarioRepository, "Writes outcomes")
+Rel(scenarioRepository, scenarioDb, "R/W", "SQL")
+
+SHOW_LEGEND()
+@enduml

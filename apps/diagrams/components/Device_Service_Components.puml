@@ -1,0 +1,35 @@
+@startuml C4_Component_Device_Service
+!include ../_c4/C4_Component.puml
+
+title C4 Component Diagram - Device Registry & Provisioning Service
+
+Container_Ext(apiGateway, "API Gateway", "Routes device lifecycle requests")
+Container_Ext(integrationHub, "Partner Integration Hub", "Provisioning commands and credentials")
+Container_Ext(messageBus, "Event Bus", "Publishes domain events")
+ContainerDb(deviceDb, "Device DB", "PostgreSQL", "Devices, homes, rooms, digital twins")
+
+Container_Boundary(deviceService, "Device Registry & Provisioning Service") {
+  Component(deviceController, "Device API Controller", ".NET Web API", "Device CRUD and assignment to home/room")
+  Component(provisioningController, "Provisioning API Controller", ".NET Web API", "Self-service onboarding workflow")
+  Component(deviceRegistryService, "Device Registry Service", ".NET", "Digital twin lifecycle and state transitions")
+  Component(provisioningService, "Provisioning Service", ".NET", "Registration keys, handshake, partner binding")
+  Component(stateProjection, "State Projection", ".NET", "Maintains desired/reported state views")
+  Component(deviceRepository, "Device Repository", "EF Core / Dapper", "Persistence layer")
+  Component(domainEventPublisher, "Domain Event Publisher", ".NET", "Publishes DeviceRegistered/DeviceBound events")
+}
+
+Rel(apiGateway, deviceController, "Calls", "HTTPS/JSON")
+Rel(apiGateway, provisioningController, "Calls", "HTTPS/JSON")
+Rel(deviceController, deviceRegistryService, "Uses")
+Rel(provisioningController, provisioningService, "Uses")
+Rel(provisioningService, integrationHub, "Sends provisioning request", "Async/HTTP")
+Rel(deviceRegistryService, stateProjection, "Updates")
+Rel(deviceRegistryService, deviceRepository, "R/W")
+Rel(provisioningService, deviceRepository, "R/W")
+Rel(stateProjection, deviceRepository, "R/W")
+Rel(deviceRegistryService, domainEventPublisher, "Emits events")
+Rel(domainEventPublisher, messageBus, "Publishes", "Async events")
+Rel(deviceRepository, deviceDb, "R/W", "SQL")
+
+SHOW_LEGEND()
+@enduml

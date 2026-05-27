@@ -1,0 +1,364 @@
+openapi: 3.0.3
+info:
+  title: Warmhouse Internal Service Contracts
+  version: 1.0.0
+  description: Internal API contracts for service-to-service communication in the Warmhouse microservice landscape.
+servers:
+  - url: https://internal.api.warmhouse
+    description: Internal service mesh gateway
+
+tags:
+  - name: IAM
+  - name: Device
+  - name: Control
+  - name: Telemetry
+  - name: Scenario
+
+paths:
+  /internal/v1/access/check:
+    post:
+      tags: [IAM]
+      summary: Check access for user or service principal inside tenant scope
+      operationId: checkAccess
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccessCheckRequest"
+      responses:
+        "200":
+          description: Access decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessCheckResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /internal/v1/devices/{deviceId}/twin:
+    get:
+      tags: [Device]
+      summary: Get device digital twin (desired and reported state)
+      operationId: getDeviceTwin
+      parameters:
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Device twin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceTwin"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /internal/v1/commands:
+    post:
+      tags: [Control]
+      summary: Create command for a target device
+      operationId: createCommand
+      parameters:
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommandRequest"
+      responses:
+        "202":
+          description: Command accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCommandResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /internal/v1/devices/{deviceId}/telemetry/latest:
+    get:
+      tags: [Telemetry]
+      summary: Get latest telemetry snapshot for a device
+      operationId: getLatestTelemetry
+      parameters:
+        - $ref: "#/components/parameters/TenantIdHeader"
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: metric
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional filter for specific metric name
+      responses:
+        "200":
+          description: Latest telemetry values
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LatestTelemetryResponse"
+
+  /internal/v1/scenarios/evaluate-trigger:
+    post:
+      tags: [Scenario]
+      summary: Evaluate incoming event against enabled scenarios
+      operationId: evaluateTrigger
+      parameters:
+        - $ref: "#/components/parameters/TenantIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TriggerEventRequest"
+      responses:
+        "200":
+          description: Evaluation result and planned actions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriggerEvaluationResponse"
+
+components:
+  parameters:
+    TenantIdHeader:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Tenant boundary identifier for multi-tenant isolation.
+
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Prevents duplicate command creation on retries.
+
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Entity not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflict with current state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    AccessCheckRequest:
+      type: object
+      required: [tenant_id, principal_id, principal_type, action, resource]
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        principal_id:
+          type: string
+        principal_type:
+          type: string
+          enum: [user, service]
+        action:
+          type: string
+          example: command.execute
+        resource:
+          type: string
+          example: device:7f2e4f56-6f3c-40a4-979f-b72f6d8f42cc
+        required_roles:
+          type: array
+          items:
+            type: string
+
+    AccessCheckResponse:
+      type: object
+      required: [allow, tenant_id]
+      properties:
+        allow:
+          type: boolean
+        tenant_id:
+          type: string
+          format: uuid
+        effective_roles:
+          type: array
+          items:
+            type: string
+        reason:
+          type: string
+
+    DeviceTwin:
+      type: object
+      required: [device_id, tenant_id, status, desired_state, reported_state]
+      properties:
+        device_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: online
+        capabilities:
+          type: array
+          items:
+            type: string
+        desired_state:
+          type: object
+          additionalProperties: true
+        reported_state:
+          type: object
+          additionalProperties: true
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateCommandRequest:
+      type: object
+      required: [device_id, action, payload, requested_by]
+      properties:
+        device_id:
+          type: string
+          format: uuid
+        action:
+          type: string
+          example: lock.close
+        payload:
+          type: object
+          additionalProperties: true
+        requested_by:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum: [manual, scenario]
+
+    CreateCommandResponse:
+      type: object
+      required: [command_id, status, accepted_at]
+      properties:
+        command_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: accepted
+        accepted_at:
+          type: string
+          format: date-time
+
+    LatestTelemetryResponse:
+      type: object
+      required: [device_id, tenant_id, metrics]
+      properties:
+        device_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/TelemetryMetric"
+
+    TelemetryMetric:
+      type: object
+      required: [name, value, observed_at]
+      properties:
+        name:
+          type: string
+          example: temperature
+        value:
+          oneOf:
+            - type: number
+            - type: string
+        unit:
+          type: string
+          example: C
+        observed_at:
+          type: string
+          format: date-time
+
+    TriggerEventRequest:
+      type: object
+      required: [event_id, event_type, occurred_at, payload]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+          example: telemetry.threshold_exceeded
+        device_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+        payload:
+          type: object
+          additionalProperties: true
+
+    TriggerEvaluationResponse:
+      type: object
+      required: [matched_scenarios, planned_actions]
+      properties:
+        matched_scenarios:
+          type: array
+          items:
+            type: string
+            format: uuid
+        planned_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlannedAction"
+
+    PlannedAction:
+      type: object
+      required: [target_device_id, action, payload]
+      properties:
+        target_device_id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: invalid_request
+        message:
+          type: string
+        correlation_id:
+          type: string

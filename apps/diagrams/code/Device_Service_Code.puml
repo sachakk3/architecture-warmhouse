@@ -1,0 +1,105 @@
+@startuml Device_Service_Code
+title Code Diagram - Device Registry & Provisioning Service
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "API Layer" {
+  class DeviceController {
+    +GetDevice(id)
+    +CreateDevice(request)
+    +BindDeviceToRoom(request)
+    +UpdateDesiredState(request)
+  }
+
+  class ProvisioningController {
+    +StartProvisioning(request)
+    +ConfirmProvisioning(request)
+  }
+}
+
+package "Application Layer" {
+  class DeviceRegistryService {
+    +CreateDevice(cmd)
+    +BindToRoom(cmd)
+    +UpdateTwinState(cmd)
+  }
+
+  class ProvisioningService {
+    +CreateClaimCode(cmd)
+    +CompleteHandshake(cmd)
+  }
+
+  class DeviceStateProjection {
+    +ApplyReportedState(event)
+    +ProjectDesiredState(event)
+  }
+
+  class DomainEventPublisher {
+    +PublishDeviceRegistered(event)
+    +PublishDeviceBound(event)
+  }
+}
+
+package "Domain Layer" {
+  class Device {
+    +Id
+    +TenantId
+    +HomeId
+    +Status
+    +DesiredState
+    +ReportedState
+    +BindToRoom(roomId)
+    +ApplyReportedState(data)
+  }
+
+  class ProvisioningSession {
+    +SessionId
+    +ClaimCode
+    +ExpiresAt
+    +Complete()
+  }
+}
+
+package "Infrastructure Layer" {
+  interface IDeviceRepository {
+    +GetById(id)
+    +Save(device)
+  }
+
+  interface IProvisioningRepository {
+    +CreateSession(session)
+    +GetByClaimCode(code)
+  }
+
+  class DeviceRepository
+  class ProvisioningRepository
+  class IntegrationHubClient {
+    +SendProvisioningRequest(payload)
+  }
+
+  class EventBusPublisher {
+    +Publish(topic, payload)
+  }
+}
+
+DeviceController --> DeviceRegistryService
+ProvisioningController --> ProvisioningService
+
+DeviceRegistryService --> IDeviceRepository
+DeviceRegistryService --> DeviceStateProjection
+DeviceRegistryService --> DomainEventPublisher
+ProvisioningService --> IProvisioningRepository
+ProvisioningService --> IntegrationHubClient
+ProvisioningService --> DomainEventPublisher
+
+DeviceStateProjection --> IDeviceRepository
+DomainEventPublisher --> EventBusPublisher
+
+IDeviceRepository <|.. DeviceRepository
+IProvisioningRepository <|.. ProvisioningRepository
+
+DeviceRepository --> Device
+ProvisioningRepository --> ProvisioningSession
+
+@enduml

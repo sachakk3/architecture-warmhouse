@@ -1,0 +1,30 @@
+@startuml C4_Component_Video_Service
+!include ../_c4/C4_Component.puml
+
+title C4 Component Diagram - Video Service
+
+Container_Ext(apiGateway, "API Gateway", "Video metadata requests")
+System_Ext(partnerDevices, "Partner Camera Devices", "RTSP/WebRTC camera sources")
+ContainerDb(videoMetaDb, "Video Metadata DB", "PostgreSQL", "Cameras, stream metadata, retention")
+
+Container_Boundary(videoService, "Video Service") {
+  Component(videoController, "Video API Controller", ".NET Web API", "Camera listing, stream session requests")
+  Component(cameraRegistry, "Camera Registry", ".NET", "Camera metadata and ownership")
+  Component(streamSessionManager, "Stream Session Manager", ".NET", "Creates short-lived secure stream sessions")
+  Component(accessPolicy, "Video Access Policy", ".NET", "Tenant and role-based access checks")
+  Component(streamAdapter, "Stream Adapter", ".NET", "Interacts with camera endpoints and stream brokers")
+  Component(videoRepository, "Video Repository", "EF Core / Dapper", "Persistence layer")
+}
+
+Rel(apiGateway, videoController, "Calls", "HTTPS/JSON")
+Rel(videoController, accessPolicy, "Authorizes")
+Rel(videoController, cameraRegistry, "Uses")
+Rel(videoController, streamSessionManager, "Requests stream session")
+Rel(streamSessionManager, streamAdapter, "Creates stream link")
+Rel(streamAdapter, partnerDevices, "Fetches stream endpoint", "RTSP/WebRTC/HTTP")
+Rel(cameraRegistry, videoRepository, "R/W")
+Rel(streamSessionManager, videoRepository, "Reads camera metadata")
+Rel(videoRepository, videoMetaDb, "R/W", "SQL")
+
+SHOW_LEGEND()
+@enduml
