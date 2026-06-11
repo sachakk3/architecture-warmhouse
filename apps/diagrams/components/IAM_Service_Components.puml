@@ -1,0 +1,30 @@
+@startuml C4_Component_IAM_Service
+!include ../_c4/C4_Component.puml
+
+title C4 Component Diagram - IAM Service
+
+Container_Ext(apiGateway, "API Gateway", "Routes authenticated tenant requests")
+System_Ext(identityProvider, "Identity Provider", "OIDC/OAuth2 provider")
+ContainerDb(iamDb, "IAM DB", "PostgreSQL", "Users, roles, tenant memberships")
+
+Container_Boundary(iamService, "IAM Service") {
+  Component(authController, "Auth API Controller", ".NET Web API", "Login, token exchange, refresh, logout")
+  Component(tenantAccessController, "Tenant Access Controller", ".NET Web API", "Membership and role checks for tenant scope")
+  Component(identityFederation, "Identity Federation Adapter", ".NET", "OIDC/OAuth2 integration with external IdP")
+  Component(userService, "User Service", ".NET", "User profile, role and membership management")
+  Component(tokenService, "Token Service", ".NET", "Issues and validates JWT access tokens")
+  Component(iamRepository, "IAM Repository", "EF Core / Dapper", "Persistence layer for IAM entities")
+}
+
+Rel(apiGateway, authController, "Calls", "HTTPS/JSON")
+Rel(apiGateway, tenantAccessController, "Calls", "HTTPS/JSON")
+Rel(authController, identityFederation, "Uses")
+Rel(authController, tokenService, "Uses")
+Rel(tenantAccessController, userService, "Uses")
+Rel(identityFederation, identityProvider, "Auth code flow", "OIDC/OAuth2")
+Rel(userService, iamRepository, "R/W")
+Rel(tokenService, iamRepository, "Reads principals")
+Rel(iamRepository, iamDb, "R/W", "SQL")
+
+SHOW_LEGEND()
+@enduml

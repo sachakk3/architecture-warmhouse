@@ -1,0 +1,35 @@
+@startuml C4_Component_Notification_Service
+!include ../_c4/C4_Component.puml
+
+title C4 Component Diagram - Notification Service
+
+Container_Ext(apiGateway, "API Gateway", "Notification settings requests")
+Container_Ext(messageBus, "Event Bus", "Alerts and command outcomes")
+System_Ext(pushProvider, "Push Provider", "FCM/APNs")
+System_Ext(emailProvider, "Email Provider", "SMTP/Transactional email API")
+System_Ext(smsProvider, "SMS Provider", "SMS gateway")
+
+Container_Boundary(notificationService, "Notification Service") {
+  Component(preferencesController, "Preferences API Controller", ".NET Web API", "User notification channels and rules")
+  Component(eventConsumer, "Event Consumer", ".NET", "Consumes alert and status events")
+  Component(routingEngine, "Routing Engine", ".NET", "Resolves recipients, channels and templates")
+  Component(templateEngine, "Template Engine", ".NET", "Renders localized notification payloads")
+  Component(deliveryOrchestrator, "Delivery Orchestrator", ".NET", "Retries, backoff, deduplication")
+  Component(channelAdapters, "Channel Adapters", ".NET", "Push/email/SMS connectors")
+  Component(preferencesStore, "Preferences Store", "PostgreSQL/Redis", "Notification preferences and mute windows")
+}
+
+Rel(apiGateway, preferencesController, "Calls", "HTTPS/JSON")
+Rel(preferencesController, preferencesStore, "R/W")
+Rel(eventConsumer, messageBus, "Consumes", "Async events")
+Rel(eventConsumer, routingEngine, "Passes events")
+Rel(routingEngine, preferencesStore, "Reads preferences")
+Rel(routingEngine, templateEngine, "Builds payload")
+Rel(templateEngine, deliveryOrchestrator, "Sends prepared messages")
+Rel(deliveryOrchestrator, channelAdapters, "Dispatches")
+Rel(channelAdapters, pushProvider, "Sends push", "HTTPS")
+Rel(channelAdapters, emailProvider, "Sends email", "HTTPS/SMTP")
+Rel(channelAdapters, smsProvider, "Sends SMS", "HTTPS")
+
+SHOW_LEGEND()
+@enduml

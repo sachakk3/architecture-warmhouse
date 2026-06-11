@@ -1,0 +1,37 @@
+@startuml C4_Component_Integration_Hub
+!include ../_c4/C4_Component.puml
+
+title C4 Component Diagram - Partner Integration Hub
+
+Container_Ext(deviceService, "Device Registry Service", "Provisioning and credentials")
+Container_Ext(controlService, "Command & Control Service", "Outbound commands")
+Container_Ext(messageBus, "Event Bus", "Telemetry and command events")
+System_Ext(partnerDevices, "Partner Devices", "Heterogeneous partner ecosystems")
+
+Container_Boundary(integrationHub, "Partner Integration Hub") {
+  Component(protocolGateway, "Protocol Gateway", ".NET", "Unified ingress/egress abstraction")
+  Component(deviceAdapterRegistry, "Adapter Registry", ".NET", "Resolves adapter by vendor/protocol")
+  Component(mqttAdapter, "MQTT Adapter", ".NET", "MQTT-based device connectivity")
+  Component(httpAdapter, "HTTP Adapter", ".NET", "REST/webhook-based connectivity")
+  Component(bridgeAdapter, "Bridge Adapter", ".NET", "Zigbee/Z-Wave bridge integration")
+  Component(payloadNormalizer, "Payload Normalizer", ".NET", "Transforms partner payloads to canonical events")
+  Component(securityGateway, "Security Gateway", ".NET", "Credential validation, signing, replay protection")
+}
+
+Rel(deviceService, protocolGateway, "Provisioning requests", "Async/HTTP")
+Rel(controlService, protocolGateway, "Command dispatch", "Async/HTTP")
+Rel(protocolGateway, deviceAdapterRegistry, "Resolves adapter")
+Rel(protocolGateway, securityGateway, "Validates request")
+Rel(deviceAdapterRegistry, mqttAdapter, "Routes")
+Rel(deviceAdapterRegistry, httpAdapter, "Routes")
+Rel(deviceAdapterRegistry, bridgeAdapter, "Routes")
+Rel(mqttAdapter, partnerDevices, "Bi-directional", "MQTT")
+Rel(httpAdapter, partnerDevices, "Bi-directional", "HTTP/Webhook")
+Rel(bridgeAdapter, partnerDevices, "Bi-directional", "Bridge protocol")
+Rel(mqttAdapter, payloadNormalizer, "Passes telemetry")
+Rel(httpAdapter, payloadNormalizer, "Passes telemetry")
+Rel(bridgeAdapter, payloadNormalizer, "Passes telemetry")
+Rel(payloadNormalizer, messageBus, "Publishes canonical events", "Async events")
+
+SHOW_LEGEND()
+@enduml

@@ -1,0 +1,92 @@
+@startuml Control_Service_Code
+title Code Diagram - Command & Control Service
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "API Layer" {
+  class CommandController {
+    +ExecuteCommand(request)
+    +GetCommandStatus(commandId)
+  }
+}
+
+package "Application Layer" {
+  class CommandOrchestrator {
+    +HandleExecuteCommand(cmd)
+    +HandleStatusUpdate(event)
+  }
+
+  class CommandPolicyEngine {
+    +ValidateTenantAccess(cmd)
+    +ValidateSafetyRules(cmd)
+  }
+
+  class DeviceStateReader {
+    +GetCurrentState(deviceId)
+  }
+
+  class CommandDispatcher {
+    +Dispatch(command)
+  }
+
+  class CommandStatusConsumer {
+    +Consume(statusEvent)
+  }
+}
+
+package "Domain Layer" {
+  class DeviceCommand {
+    +CommandId
+    +DeviceId
+    +Action
+    +Payload
+    +Status
+    +MarkAccepted()
+    +MarkDelivered()
+    +MarkFailed(reason)
+  }
+
+  class CommandStatus {
+    +CommandId
+    +State
+    +Timestamp
+  }
+}
+
+package "Infrastructure Layer" {
+  interface ICommandRepository {
+    +Save(command)
+    +GetById(commandId)
+    +UpdateStatus(status)
+  }
+
+  class CommandRepository
+  class IntegrationHubClient {
+    +SendCommand(command)
+  }
+
+  class EventBusPublisher {
+    +Publish(topic, payload)
+  }
+
+  class EventBusConsumer {
+    +Subscribe(topic, handler)
+  }
+}
+
+CommandController --> CommandOrchestrator
+CommandOrchestrator --> CommandPolicyEngine
+CommandOrchestrator --> DeviceStateReader
+CommandOrchestrator --> CommandDispatcher
+CommandOrchestrator --> ICommandRepository
+CommandOrchestrator --> EventBusPublisher
+
+CommandDispatcher --> IntegrationHubClient
+CommandStatusConsumer --> EventBusConsumer
+CommandStatusConsumer --> CommandOrchestrator
+
+ICommandRepository <|.. CommandRepository
+CommandRepository --> DeviceCommand
+
+@enduml

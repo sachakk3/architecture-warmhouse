@@ -1,0 +1,114 @@
+@startuml Scenario_Service_Code
+title Code Diagram - Scenario Service
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "API Layer" {
+  class ScenarioController {
+    +CreateScenario(request)
+    +UpdateScenario(id, request)
+    +DeleteScenario(id)
+    +GetScenario(id)
+  }
+}
+
+package "Application Layer" {
+  class RuleCompiler {
+    +Compile(ruleDefinition)
+  }
+
+  class TriggerConsumer {
+    +Consume(event)
+  }
+
+  class ScheduleEngine {
+    +RunTick(now)
+  }
+
+  class ActionPlanner {
+    +BuildActions(executionContext)
+  }
+
+  class ActionPublisher {
+    +PublishDeviceAction(action)
+  }
+
+  class ExecutionTracker {
+    +StartExecution(scenarioId)
+    +CompleteExecution(executionId, result)
+    +FailExecution(executionId, error)
+  }
+}
+
+package "Domain Layer" {
+  class Scenario {
+    +ScenarioId
+    +TenantId
+    +Name
+    +Enabled
+    +Rules
+    +Enable()
+    +Disable()
+  }
+
+  class Rule {
+    +Trigger
+    +Condition
+    +Action
+    +Evaluate(context)
+  }
+
+  class ExecutionRecord {
+    +ExecutionId
+    +ScenarioId
+    +StartedAt
+    +FinishedAt
+    +Status
+  }
+}
+
+package "Infrastructure Layer" {
+  interface IScenarioRepository {
+    +Save(scenario)
+    +GetById(id)
+    +GetEnabledByTrigger(trigger)
+  }
+
+  class ScenarioRepository
+  class EventBusConsumer {
+    +Subscribe(topic, handler)
+  }
+
+  class EventBusPublisher {
+    +Publish(topic, payload)
+  }
+
+  class SchedulerAdapter {
+    +Register(schedule)
+  }
+}
+
+ScenarioController --> RuleCompiler
+ScenarioController --> IScenarioRepository
+
+TriggerConsumer --> EventBusConsumer
+TriggerConsumer --> IScenarioRepository
+TriggerConsumer --> ActionPlanner
+TriggerConsumer --> ExecutionTracker
+
+ScheduleEngine --> SchedulerAdapter
+ScheduleEngine --> IScenarioRepository
+ScheduleEngine --> ActionPlanner
+ScheduleEngine --> ExecutionTracker
+
+ActionPlanner --> ActionPublisher
+ActionPublisher --> EventBusPublisher
+
+ExecutionTracker --> IScenarioRepository
+IScenarioRepository <|.. ScenarioRepository
+ScenarioRepository --> Scenario
+Scenario --> Rule
+ExecutionTracker --> ExecutionRecord
+
+@enduml

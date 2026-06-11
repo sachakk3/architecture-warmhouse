@@ -1,0 +1,28 @@
+@startuml C4_Component_Module_Catalog_Service
+!include ../_c4/C4_Component.puml
+
+title C4 Component Diagram - Module Catalog Service
+
+Container_Ext(apiGateway, "API Gateway", "Routes catalog and activation requests")
+ContainerDb(catalogDb, "Catalog DB", "PostgreSQL", "Modules, bundles, compatibility rules")
+
+Container_Boundary(catalogService, "Module Catalog Service") {
+  Component(catalogController, "Catalog API Controller", ".NET Web API", "Public catalog and module details")
+  Component(activationController, "Activation API Controller", ".NET Web API", "Module activation for tenant/home")
+  Component(catalogQueryService, "Catalog Query Service", ".NET", "Search, filtering, compatibility checks")
+  Component(activationService, "Activation Service", ".NET", "Validates entitlement and activates modules")
+  Component(pricingPolicy, "Pricing & Eligibility Policy", ".NET", "Rules for plan/module availability")
+  Component(catalogRepository, "Catalog Repository", "EF Core / Dapper", "Persistence layer")
+}
+
+Rel(apiGateway, catalogController, "Calls", "HTTPS/JSON")
+Rel(apiGateway, activationController, "Calls", "HTTPS/JSON")
+Rel(catalogController, catalogQueryService, "Uses")
+Rel(activationController, activationService, "Uses")
+Rel(activationService, pricingPolicy, "Evaluates")
+Rel(catalogQueryService, catalogRepository, "Reads")
+Rel(activationService, catalogRepository, "R/W")
+Rel(catalogRepository, catalogDb, "R/W", "SQL")
+
+SHOW_LEGEND()
+@enduml

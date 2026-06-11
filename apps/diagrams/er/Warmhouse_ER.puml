@@ -1,0 +1,192 @@
+@startuml Warmhouse_ER
+hide circle
+skinparam linetype ortho
+
+entity "tenants" as tenants {
+  * id : uuid
+  --
+  name : varchar
+  status : varchar
+  created_at : timestamptz
+}
+
+entity "users" as users {
+  * id : uuid
+  --
+  email : varchar
+  full_name : varchar
+  password_hash : varchar
+  status : varchar
+  created_at : timestamptz
+}
+
+entity "tenant_users" as tenant_users {
+  * tenant_id : uuid <<FK>>
+  * user_id : uuid <<FK>>
+  --
+  role : varchar
+  invited_at : timestamptz
+  joined_at : timestamptz
+}
+
+entity "homes" as homes {
+  * id : uuid
+  --
+  tenant_id : uuid <<FK>>
+  name : varchar
+  timezone : varchar
+  created_at : timestamptz
+}
+
+entity "rooms" as rooms {
+  * id : uuid
+  --
+  home_id : uuid <<FK>>
+  name : varchar
+  floor : int
+}
+
+entity "devices" as devices {
+  * id : uuid
+  --
+  tenant_id : uuid <<FK>>
+  home_id : uuid <<FK>>
+  room_id : uuid <<FK>>
+  partner_device_id : varchar
+  type : varchar
+  vendor : varchar
+  protocol : varchar
+  status : varchar
+  desired_state_json : jsonb
+  reported_state_json : jsonb
+  created_at : timestamptz
+}
+
+entity "modules" as modules {
+  * id : uuid
+  --
+  code : varchar
+  name : varchar
+  category : varchar
+  is_active : bool
+}
+
+entity "tenant_modules" as tenant_modules {
+  * tenant_id : uuid <<FK>>
+  * module_id : uuid <<FK>>
+  --
+  status : varchar
+  activated_at : timestamptz
+  expires_at : timestamptz
+}
+
+entity "scenarios" as scenarios {
+  * id : uuid
+  --
+  tenant_id : uuid <<FK>>
+  home_id : uuid <<FK>>
+  name : varchar
+  is_enabled : bool
+  created_by : uuid <<FK users.id>>
+  created_at : timestamptz
+}
+
+entity "scenario_rules" as scenario_rules {
+  * id : uuid
+  --
+  scenario_id : uuid <<FK>>
+  trigger_type : varchar
+  trigger_payload_json : jsonb
+  condition_json : jsonb
+  action_json : jsonb
+  sort_order : int
+}
+
+entity "telemetry_readings" as telemetry_readings {
+  * id : uuid
+  --
+  tenant_id : uuid <<FK>>
+  device_id : uuid <<FK>>
+  metric : varchar
+  value_num : numeric
+  value_text : varchar
+  unit : varchar
+  observed_at : timestamptz
+}
+
+entity "commands" as commands {
+  * id : uuid
+  --
+  tenant_id : uuid <<FK>>
+  device_id : uuid <<FK>>
+  requested_by : uuid <<FK users.id>>
+  action : varchar
+  payload_json : jsonb
+  status : varchar
+  requested_at : timestamptz
+  completed_at : timestamptz
+}
+
+entity "plans" as plans {
+  * id : uuid
+  --
+  code : varchar
+  name : varchar
+  price_monthly : numeric
+  max_homes : int
+  max_devices : int
+}
+
+entity "subscriptions" as subscriptions {
+  * id : uuid
+  --
+  tenant_id : uuid <<FK>>
+  plan_id : uuid <<FK>>
+  status : varchar
+  start_at : timestamptz
+  end_at : timestamptz
+}
+
+entity "notifications" as notifications {
+  * id : uuid
+  --
+  tenant_id : uuid <<FK>>
+  user_id : uuid <<FK>>
+  type : varchar
+  channel : varchar
+  title : varchar
+  body : text
+  status : varchar
+  created_at : timestamptz
+}
+
+tenants ||--o{ homes
+homes ||--o{ rooms
+rooms ||--o{ devices
+homes ||--o{ devices
+
+tenants ||--o{ tenant_users
+users ||--o{ tenant_users
+
+tenants ||--o{ tenant_modules
+modules ||--o{ tenant_modules
+
+tenants ||--o{ scenarios
+homes ||--o{ scenarios
+scenarios ||--o{ scenario_rules
+users ||--o{ scenarios
+
+tenants ||--o{ telemetry_readings
+devices ||--o{ telemetry_readings
+
+tenants ||--o{ commands
+devices ||--o{ commands
+users ||--o{ commands
+
+tenants ||--o{ subscriptions
+plans ||--o{ subscriptions
+
+tenants ||--o{ notifications
+users ||--o{ notifications
+
+@enduml

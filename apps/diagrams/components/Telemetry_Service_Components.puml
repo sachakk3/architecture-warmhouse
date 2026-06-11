@@ -1,0 +1,27 @@
+@startuml C4_Component_Telemetry_Service
+!include ../_c4/C4_Component.puml
+
+title C4 Component Diagram - Telemetry Service
+
+Container_Ext(apiGateway, "API Gateway", "Telemetry query requests")
+Container_Ext(messageBus, "Event Bus", "Telemetry event stream")
+ContainerDb(telemetryDb, "Telemetry Store", "TimescaleDB/ClickHouse", "High-volume telemetry time series")
+
+Container_Boundary(telemetryService, "Telemetry Service") {
+  Component(telemetryQueryController, "Telemetry Query API", ".NET Web API", "Current values and historical series")
+  Component(telemetryIngestConsumer, "Telemetry Ingest Consumer", ".NET", "Consumes normalized telemetry events")
+  Component(validationPipeline, "Validation Pipeline", ".NET", "Schema/quality validation and enrichment")
+  Component(aggregationEngine, "Aggregation Engine", ".NET", "Rollups, min/max/avg windows")
+  Component(telemetryRepository, "Telemetry Repository", "Native client + SQL", "Read/write to time-series store")
+}
+
+Rel(apiGateway, telemetryQueryController, "Calls", "HTTPS/JSON")
+Rel(telemetryIngestConsumer, messageBus, "Consumes", "Async events")
+Rel(telemetryIngestConsumer, validationPipeline, "Uses")
+Rel(validationPipeline, telemetryRepository, "Writes validated points")
+Rel(aggregationEngine, telemetryRepository, "Reads/Writes rollups")
+Rel(telemetryQueryController, telemetryRepository, "Reads")
+Rel(telemetryRepository, telemetryDb, "R/W")
+
+SHOW_LEGEND()
+@enduml

@@ -1,0 +1,34 @@
+@startuml C4_Component_Control_Service
+!include ../_c4/C4_Component.puml
+
+title C4 Component Diagram - Command & Control Service
+
+Container_Ext(apiGateway, "API Gateway", "Routes command requests")
+Container_Ext(integrationHub, "Partner Integration Hub", "Delivers commands to devices")
+Container_Ext(messageBus, "Event Bus", "Scenario actions and status events")
+ContainerDb(deviceDb, "Device DB", "PostgreSQL", "Reads current digital twin state")
+
+Container_Boundary(controlService, "Command & Control Service") {
+  Component(commandController, "Command API Controller", ".NET Web API", "Execute commands for lights/heating/locks/gates")
+  Component(commandOrchestrator, "Command Orchestrator", ".NET", "Validates, routes and tracks command execution")
+  Component(policyEngine, "Command Policy Engine", ".NET", "Permission and safety checks")
+  Component(stateReader, "Device State Reader", ".NET", "Reads latest desired/reported state")
+  Component(commandDispatcher, "Command Dispatcher", ".NET", "Sends normalized commands to integration hub")
+  Component(statusConsumer, "Command Status Consumer", ".NET", "Consumes command results from event bus")
+  Component(commandStore, "Command Store", "EF Core / Dapper", "Persists command history and statuses")
+}
+
+Rel(apiGateway, commandController, "Calls", "HTTPS/JSON")
+Rel(commandController, commandOrchestrator, "Uses")
+Rel(commandOrchestrator, policyEngine, "Validates")
+Rel(commandOrchestrator, stateReader, "Reads state")
+Rel(stateReader, deviceDb, "Reads", "SQL")
+Rel(commandOrchestrator, commandDispatcher, "Dispatches")
+Rel(commandDispatcher, integrationHub, "Sends command", "Async/HTTP")
+Rel(commandOrchestrator, commandStore, "Writes command")
+Rel(statusConsumer, messageBus, "Consumes", "Async events")
+Rel(statusConsumer, commandStore, "Updates status")
+Rel(commandOrchestrator, messageBus, "Publishes requested status", "Async events")
+
+SHOW_LEGEND()
+@enduml
